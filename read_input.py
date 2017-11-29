@@ -65,3 +65,32 @@ def calibrate(n_bins, cal_filename, hist_filename, verbose):
     bins = np.polynomial.polynomial.polyval(bins, coefficients)
 
     return bins
+
+# Function to remove the suffix and path from a file name, e.g. convert
+# '/home/user/file.txt' to 'file'
+def remove_suffix_and_path(filename):
+    # Find last occurrence of path separator "/" 
+    # and last occurrence of file suffix indicator "."
+    path = 0
+    suffix = len(filename)
+
+    for n,c in enumerate(filename):
+        if c == "/":
+            path = n
+        if c == ".":
+            suffix = n
+
+    return filename[path + 1: suffix]
+
+# Function to remove the path from a file name, e.g. convert
+# '/home/user/file.txt' to 'file.txt'
+def remove_path(filename):
+    # Find last occurrence of path separator "/" 
+    # and last occurrence of file suffix indicator "."
+    path = 0
+
+    for n,c in enumerate(filename):
+        if c == "/":
+            path = n
+
+    return filename[path:]

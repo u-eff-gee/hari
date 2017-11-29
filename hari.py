@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy import interpolate
 import argparse
 
-import read_cal
+import read_input
 import binning
 
 parser = argparse.ArgumentParser(prog="hari: histogram arbitrary rebinning intelligent")
@@ -54,7 +54,7 @@ if args.input_bins:
 elif args.calibration:
     if args.verbose:
         print("> Reading calibration parameters for input histogram from file", args.calibration)
-    input_bins = read_cal.calibrate(input_hist_size, args.calibration, args.histogram, args.verbose)
+    input_bins = read_input.calibrate(input_hist_size, args.calibration, read_input.remove_suffix_and_path(args.histogram), args.verbose)
     n_input_bins = input_hist_size
 
 else:
@@ -73,7 +73,8 @@ if args.verbose:
 if args.range:
     output_bin_range = np.array([float(args.range[0]), float(args.range[1])])
 else:
-    print("> No range for output bins given, assume same range as input")
+    if args.verbose:
+        print("> No range for output bins given, assume same range as input")
     output_bin_range = np.array([float(input_bins[0]), float(input_bins[-1])])
 
 if args.binning_factor:
@@ -123,7 +124,7 @@ inter = interpolate.InterpolatedUnivariateSpline(input_bins, input_hist)
 #
 
 for i in range(0, n_output_bins):
-    output_hist[i] = max(inter.integral(output_bins_low[i], output_bins_high[i]), 0.)
+    output_hist[i] = max(inter.integral(output_bins_low[i], output_bins_high[i]), 0.)/(output_bins_high[i] - output_bins_low[i])
 
 if not args.deterministic:
     if args.verbose:
@@ -145,12 +146,13 @@ if args.binning_factor or args.n_bins:
 #
 # Write the result
 #
+
 if args.output:
-    output_hist_filename = "hist_" + args.output
-    output_bins_filename = "bins_" + args.output
+    output_hist_filename = read_input.remove_suffix_and_path(args.output) + "_hist.txt"
+    output_bins_filename = read_input.remove_suffix_and_path(args.output) + "_bins.txt"
 else:
-    output_hist_filename = "hist_" + args.histogram
-    output_bins_filename = "bins_" + args.histogram
+    output_hist_filename = read_input.remove_suffix_and_path(args.histogram) + "_hist.txt"
+    output_bins_filename = read_input.remove_suffix_and_path(args.histogram) + "_bins.txt"
 
 if args.verbose:
     print("> Writing output histogram to", output_hist_filename)
@@ -161,9 +163,9 @@ np.savetxt(output_bins_filename, output_bins, fmt='%.6e')
 
 if args.binning_factor or args.n_bins:
     if args.output:
-        output_cal_filename = "cal_" + args.output
+        output_cal_filename = read_input.remove_suffix_and_path(args.output) + "_cal.txt"
     else:
-        output_cal_filename = "cal_" + args.histogram
+        output_cal_filename = read_input.remove_suffix_and_path(args.histogram) + "_cal.txt"
     if args.verbose:
         print("> Writing calibration coefficients to", output_cal_filename)
     output_cal_file = open(output_cal_filename, "w")
@@ -173,6 +175,7 @@ if args.binning_factor or args.n_bins:
         output_cal_file.write(str(c))
 
     output_cal_file.close()
+
 #
 # Plot the result
 #
