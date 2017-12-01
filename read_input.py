@@ -71,7 +71,7 @@ def calibrate(n_bins, cal_filename, hist_filename, verbose):
 def remove_suffix_and_path(filename):
     # Find last occurrence of path separator "/" 
     # and last occurrence of file suffix indicator "."
-    path = 0
+    path = -1
     suffix = len(filename)
 
     for n,c in enumerate(filename):
@@ -80,7 +80,10 @@ def remove_suffix_and_path(filename):
         if c == ".":
             suffix = n
 
-    return filename[path + 1: suffix]
+    if path == -1:
+        return filename[0: suffix]
+    else:
+        return filename[path + 1: suffix]
 
 # Function to remove the path from a file name, e.g. convert
 # '/home/user/file.txt' to 'file.txt'

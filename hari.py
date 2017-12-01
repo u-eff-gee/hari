@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import interpolate
 import argparse
+import time
 
 import read_input
 import binning
@@ -15,6 +16,7 @@ output_bins_group.add_argument("-ob", "--output_bins", metavar=("BIN_FILE"), hel
 input_bins_group.add_argument("-c", "--calibration", metavar=("CALIBRATION_FILE"), help="Use file with calibration parameters for polynomial")
 parser.add_argument("-d", "--deterministic", help="Rebin deterministically", action="store_true")
 output_bins_group.add_argument("-f", "--binning_factor", help="Rebinning factor")
+parser.add_argument("-i", "--conserve_integral", help="Conserve sum over h[i]*dx[i] instead of sum over h[i]", action="store_true")
 parser.add_argument("-l", "--limits", nargs=2, metavar=("LOWER_LIMIT", "UPPER_LIMIT"), help="Set limits of the plot range")
 output_bins_group.add_argument("-n", "--n_bins", help="Number of bins for the output histogram")
 parser.add_argument("-o", "--output", help="Set output file name")
@@ -23,6 +25,8 @@ parser.add_argument("-r", "--range", nargs=2, metavar=("START", "STOP"), help="S
 parser.add_argument("-s", "--seed", help="Set random number seed")
 parser.add_argument("-v", "--verbose", help="Print messages during program execution", action="store_true")
 args=parser.parse_args()
+
+start = time.time()
 
 #
 # Read input histogram
@@ -72,6 +76,10 @@ if args.verbose:
 
 if args.range:
     output_bin_range = np.array([float(args.range[0]), float(args.range[1])])
+
+    if output_bin_range[0] < input_bins[0] or output_bin_range[1] < input_bins[-1]:
+        print("Warning: Range of output bins [", output_bin_range[0], ",", output_bin_range[1], "] is larger than input bins [", input_bins[0], ",", input_bins[-1], "]")
+
 else:
     if args.verbose:
         print("> No range for output bins given, assume same range as input")
@@ -86,6 +94,8 @@ elif args.output_bins:
     if args.verbose:
         print("> Reading output bins from file", args.output_bins)
     output_bins = np.loadtxt(args.bins)
+    if output_bins[0] < input_bins[0] or output_bins[-1] < input_bins[-1]:
+        print("Warning: Range of output bins [", output_bin_range[0], ",", output_bin_range[1], "] is larger than input bins [", input_bins[0], ",", input_bins[-1], "]")
 
 elif args.n_bins:
     if args.verbose:
@@ -115,16 +125,33 @@ output_bins_low, output_bins_high = binning.calculate_bin_limits(output_bins)
 # Interpolate the input histogram
 #
 
-if args.verbose:
-    print("> Interpolating the input histogram")
-inter = interpolate.InterpolatedUnivariateSpline(input_bins, input_hist)
+# Calculate bins widths
+
+input_bins_width = input_bins_high - input_bins_low
+output_bins_width = output_bins_high - output_bins_low
+
+if args.conserve_integral:
+    if args.verbose:
+        print("> Interpolating the input histogram. Conserving the integral over h[i]*dx[i].")
+    inter = interpolate.InterpolatedUnivariateSpline(input_bins, input_hist)
+else:
+    if args.verbose:
+        print("> Interpolating the input histogram. Conserving the sum over the bin contents h[i].")
+    inter = interpolate.InterpolatedUnivariateSpline(np.arange(0., n_input_bins), input_hist)
+
+inter_bins = interpolate.InterpolatedUnivariateSpline(input_bins, np.arange(0., n_input_bins))
 
 #
 # Calculate the bin contents of the output histogram
 #
 
-for i in range(0, n_output_bins):
-    output_hist[i] = max(inter.integral(output_bins_low[i], output_bins_high[i]), 0.)/(output_bins_high[i] - output_bins_low[i])
+if args.conserve_integral:
+    for i in range(0, n_output_bins):
+        output_hist[i] = max(inter.integral(output_bins_low[i], output_bins_high[i]), 0.)/output_bins_width[i]
+
+else:
+    for i in range(0, n_output_bins):
+        output_hist[i] = max(inter.integral(inter_bins(output_bins_low[i]), inter_bins(output_bins_high[i])), 0.)
 
 if not args.deterministic:
     if args.verbose:
@@ -175,6 +202,42 @@ if args.binning_factor or args.n_bins:
         output_cal_file.write(str(c))
 
     output_cal_file.close()
+
+stop = time.time()
+
+#
+# Print information
+#
+
+if args.verbose:
+    print("> Execution took", stop-start, "seconds (without plotting)")
+
+    if args.conserve_integral:
+        # Calculate integral over histograms
+        input_integral = np.sum(input_hist*input_bins_width)
+        output_integral = np.sum(output_hist*output_bins_width)
+
+        print("> Integral over input histogram:", input_integral)
+        print("> Integral over output histogram:", output_integral)
+
+        if args.deterministic:
+            print("> Change of total histogram integral due to interpolation:", (input_integral - output_integral)/input_integral*100., "%")
+        else:
+            print("> Change of total histogram integral due to interpolation and random sampling:", (input_integral - output_integral)/input_integral*100. , "%")
+
+    else:
+        # Calculate sum of histogram bins
+        n_input = np.sum(input_hist)
+        n_output = np.sum(output_hist)
+
+        print("> Sum of input histogram bins:", n_input)
+        print("> Sum of output histogram bins:", n_output)
+
+        if args.deterministic:
+            print("> Change of total histogram content due to interpolation:", (n_output - n_input)/n_input*100., "%")
+        else:
+            print("> Change of total histogram content due to interpolation and random sampling:", (n_output - n_input)/n_input*100., "%")
+
 
 #
 # Plot the result
