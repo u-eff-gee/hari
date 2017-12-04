@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import interpolate
@@ -7,7 +9,7 @@ import time
 import read_input
 import binning
 
-parser = argparse.ArgumentParser(prog="hari: histogram arbitrary rebinning intelligent")
+parser = argparse.ArgumentParser(prog="hari", description="hari: histogram arbitrary rebinning intelligently")
 input_bins_group = parser.add_mutually_exclusive_group()
 output_bins_group = parser.add_mutually_exclusive_group()
 parser.add_argument("histogram", metavar=("HISTOGRAM_FILE"), help="Single-column histogram file")
