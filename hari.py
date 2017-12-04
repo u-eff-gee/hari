@@ -80,7 +80,8 @@ if args.range:
     output_bin_range = np.array([float(args.range[0]), float(args.range[1])])
 
     if output_bin_range[0] < input_bins[0] or output_bin_range[1] < input_bins[-1]:
-        print("Warning: Range of output bins [", output_bin_range[0], ",", output_bin_range[1], "] is larger than input bins [", input_bins[0], ",", input_bins[-1], "]")
+        if args.verbose:
+            print("Warning: Range of output bins [", output_bin_range[0], ",", output_bin_range[1], "] is larger than input bins [", input_bins[0], ",", input_bins[-1], "]")
 
 else:
     if args.verbose:
@@ -147,13 +148,26 @@ inter_bins = interpolate.InterpolatedUnivariateSpline(input_bins, np.arange(0., 
 # Calculate the bin contents of the output histogram
 #
 
+# Find new bins which are outside the original histogram, they are filled with zeros
+extra_bins = (output_bins_low >= input_bins_low[0])*(output_bins_high <= input_bins_high[-1])
+n_extra_bins = np.sum(extra_bins)
+
+if n_extra_bins > 0 and args.verbose:
+    print("> New histogram has", n_output_bins - np.sum(extra_bins), "new bins outside the range of the old histogram. They will be filled with zeros.")
+
 if args.conserve_integral:
     for i in range(0, n_output_bins):
-        output_hist[i] = max(inter.integral(output_bins_low[i], output_bins_high[i]), 0.)/output_bins_width[i]
+        if extra_bins[i]:
+            output_hist[i] = max(inter.integral(output_bins_low[i], output_bins_high[i]), 0.)/output_bins_width[i]
+        else:
+            output_hist[i] = 0.
 
 else:
     for i in range(0, n_output_bins):
-        output_hist[i] = max(inter.integral(inter_bins(output_bins_low[i]), inter_bins(output_bins_high[i])), 0.)
+        if extra_bins[i]:
+            output_hist[i] = max(inter.integral(inter_bins(output_bins_low[i]), inter_bins(output_bins_high[i])), 0.)
+        else:
+            output_hist[i] = 0.
 
 if not args.deterministic:
     if args.verbose:
@@ -212,7 +226,6 @@ stop = time.time()
 #
 
 if args.verbose:
-    print("> Execution took", stop-start, "seconds (without plotting)")
 
     if args.conserve_integral:
         # Calculate integral over histograms
@@ -240,6 +253,7 @@ if args.verbose:
         else:
             print("> Change of total histogram content due to interpolation and random sampling:", (n_output - n_input)/n_input*100., "%")
 
+    print("> Execution took", stop-start, "seconds (without plotting)")
 
 #
 # Plot the result
