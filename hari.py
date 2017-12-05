@@ -25,6 +25,7 @@ parser.add_argument("-o", "--output", help="Set output file name")
 parser.add_argument("-p", "--plot", help="Create plots of the rebinned spectrum", action="store_true")
 parser.add_argument("-r", "--range", nargs=2, metavar=("START", "STOP"), help="Set range of the output bins")
 parser.add_argument("-s", "--seed", help="Set random number seed")
+input_bins_group.add_argument("-t", "--twocolumn", help="Indicates that HISTOGRAM_FILE contains both the bins and the histogram", action="store_true")
 parser.add_argument("-v", "--verbose", help="Print messages during program execution", action="store_true")
 args=parser.parse_args()
 
@@ -34,43 +35,54 @@ start = time.time()
 # Read input histogram
 #
 
-if args.verbose:
-    print("> Reading input histogram from file", args.histogram)
+if args.twocolumn:
+    if args.verbose:
+        print("> Reading input bins and histogram from file", args.histogram)
+    input_hist = np.loadtxt(args.histogram)
+    input_bins = input_hist[:, 0]
+    input_hist = input_hist[:, 1]
 
-input_hist = np.loadtxt(args.histogram)
-input_hist_size = np.size(input_hist)
+    n_input_bins = np.size(input_bins)
+
+else:
+    if args.verbose:
+        print("> Reading input histogram from file", args.histogram)
+
+    input_hist = np.loadtxt(args.histogram)
+    input_hist_size = np.size(input_hist)
 
 #
 # Read input bins
 #
 
-if args.input_bins:
+if not args.twocolumn:
+    if args.input_bins:
+
+        if args.verbose:
+            print("> Reading input bins from file", args.input_bins)
+
+        input_bins = np.loadtxt(args.input_bins)
+        n_input_bins = np.size(input_bins)
+        if n_input_bins != input_hist_size:
+            print("Error: Number of bins does not match.")
+            print("\t Histogram size: ", input_hist_size)
+            print("\t Number of bins: ", n_input_bins)
+            exit()
+
+    elif args.calibration:
+        if args.verbose:
+            print("> Reading calibration parameters for input histogram from file", args.calibration)
+        input_bins = read_input.calibrate(input_hist_size, args.calibration, read_input.remove_suffix_and_path(args.histogram), args.verbose)
+        n_input_bins = input_hist_size
+
+    else:
+        if args.verbose:
+            print("> No input bins given, assume bin center == number of bin")
+        input_bins = np.arange(0, input_hist_size)
+        n_input_bins = input_hist_size
 
     if args.verbose:
-        print("> Reading input bins from file", args.input_bins)
-
-    input_bins = np.loadtxt(args.input_bins)
-    n_input_bins = np.size(input_bins)
-    if n_input_bins != input_hist_size:
-        print("Error: Number of bins does not match.")
-        print("\t Histogram size: ", input_hist_size)
-        print("\t Number of bins: ", n_input_bins)
-        exit()
-
-elif args.calibration:
-    if args.verbose:
-        print("> Reading calibration parameters for input histogram from file", args.calibration)
-    input_bins = read_input.calibrate(input_hist_size, args.calibration, read_input.remove_suffix_and_path(args.histogram), args.verbose)
-    n_input_bins = input_hist_size
-
-else:
-    if args.verbose:
-        print("> No input bins given, assume bin center == number of bin")
-    input_bins = np.arange(0, input_hist_size)
-    n_input_bins = input_hist_size
-
-if args.verbose:
-    print("> Input Histogram:", n_input_bins, "bins from", input_bins[0], "to", input_bins[-1])
+        print("> Input Histogram:", n_input_bins, "bins from", input_bins[0], "to", input_bins[-1])
 
 #
 # Create output bins
