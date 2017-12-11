@@ -81,8 +81,8 @@ if not args.twocolumn:
         input_bins = np.arange(0, input_hist_size)
         n_input_bins = input_hist_size
 
-    if args.verbose:
-        print("> Input Histogram:", n_input_bins, "bins from", input_bins[0], "to", input_bins[-1])
+if args.verbose:
+    print("> Input Histogram:", n_input_bins, "bins from", input_bins[0], "to", input_bins[-1])
 
 #
 # Create output bins
