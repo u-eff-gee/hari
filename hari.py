@@ -33,6 +33,7 @@ input_bins_group.add_argument("-c", "--calibration", metavar=("CALIBRATION_FILE"
 parser.add_argument("-d", "--deterministic", help="Rebin deterministically", action="store_true")
 output_bins_group.add_argument("-f", "--binning_factor", help="Rebinning factor")
 parser.add_argument("-i", "--conserve_integral", help="Conserve sum over h[i]*dx[i] instead of sum over h[i]", action="store_true")
+parser.add_argument("-k", "--spline_order", help="Order of the spline interpolation (default: k == 3)", default = 3, type=int, metavar="[1-5]")
 parser.add_argument("-l", "--limits", nargs=2, metavar=("LOWER_LIMIT", "UPPER_LIMIT"), help="Set limits of the plot range")
 output_bins_group.add_argument("-n", "--n_bins", help="Number of bins for the output histogram")
 parser.add_argument("-o", "--output", help="Set output file name")
@@ -154,7 +155,7 @@ output_bins_low, output_bins_high = binning.calculate_bin_limits(output_bins)
 # Interpolate the input histogram
 #
 
-# Calculate bins widths
+# Calculate bin widths
 
 input_bins_width = input_bins_high - input_bins_low
 output_bins_width = output_bins_high - output_bins_low
@@ -162,13 +163,13 @@ output_bins_width = output_bins_high - output_bins_low
 if args.conserve_integral:
     if args.verbose:
         print("> Interpolating the input histogram. Conserving the integral over h[i]*dx[i].")
-    inter = interpolate.InterpolatedUnivariateSpline(input_bins, input_hist)
+    inter = interpolate.InterpolatedUnivariateSpline(input_bins, input_hist, k = args.spline_order)
 else:
     if args.verbose:
         print("> Interpolating the input histogram. Conserving the sum over the bin contents h[i].")
-    inter = interpolate.InterpolatedUnivariateSpline(np.arange(0., n_input_bins), input_hist)
+    inter = interpolate.InterpolatedUnivariateSpline(np.arange(0., n_input_bins), input_hist, k = args.spline_order)
 
-inter_bins = interpolate.InterpolatedUnivariateSpline(input_bins, np.arange(0., n_input_bins))
+inter_bins = interpolate.InterpolatedUnivariateSpline(input_bins, np.arange(0., n_input_bins), k = args.spline_order)
 
 #
 # Calculate the bin contents of the output histogram
